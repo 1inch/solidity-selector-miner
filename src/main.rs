@@ -8,6 +8,7 @@ extern crate hex;
 #[derive(StructOpt)]
 struct Args {
     selector: String,
+    params: String,
     #[structopt(default_value = "1")]
     threads: usize,
 }
@@ -34,74 +35,87 @@ fn main() {
             .drain(0..4)
             .collect::<Vec<_>>(),
     );
+    
+    let params_length = args.params.len();
+    let mut params = [[0u8; 32]; 100];
+    for i in 0..params_length/32 {
+        params[i].copy_from_slice(&args.params.as_bytes()[i*32..(i+1)*32]);
+    }
+    if params_length % 32 > 0 {
+        params[params_length/32][0..params_length%32].copy_from_slice(
+            &args.params.as_bytes()[params_length/32*32..params_length]
+        );
+    }
+
     let mut handles = vec![];
+    for ti in 0..args.threads {
+        handles.push(Some(thread::spawn(move || {
+            let mut index = 0;
+            let mut last = Instant::now();
 
-    {
-        for ti in 0..args.threads {
-            handles.push(Some(thread::spawn(move || {
-                let mut index = 0;
-                let mut last = Instant::now();
-
-                for i1 in 0..alphabet.len() {
-                    for i2 in 0..alphabet.len() {
-                        for i3 in 0..alphabet.len() {
-                            for i4 in 0..alphabet.len() {
-                                for i5 in 0..alphabet.len() {
-                                    for i6 in 0..alphabet.len() {
-                                        for i7 in 0..alphabet.len() {
-                                            for i8 in 0..alphabet.len() {
-                                                index += 1;
-                                                if index % batch == 0 {
-                                                    let seconds = last.elapsed().as_secs();
-                                                    if seconds > 0 {
-                                                        println!(
-                                                            "Iteration ({:x}): {} ({} KH/s)\r",
-                                                            ti,
-                                                            index,
-                                                            batch / seconds / 1000
-                                                        );
-                                                    }
-                                                    last = Instant::now();
-                                                }
-
-                                                let mut hasher = Keccak256::default();
-                                                hasher.input(&[
-                                                    'f' as u8,
-                                                    'u' as u8,
-                                                    'n' as u8,
-                                                    'c' as u8,
-                                                    '_' as u8,
-                                                    alphabet[ti],
-                                                    alphabet[i1],
-                                                    alphabet[i2],
-                                                    alphabet[i3],
-                                                    alphabet[i4],
-                                                    alphabet[i5],
-                                                    alphabet[i6],
-                                                    alphabet[i7],
-                                                    alphabet[i8],
-                                                ]);
-                                                hasher.input(b"((uint256,uint256,");
-                                                hasher.input(b"uint256,bytes)[])");
-
-                                                if &hasher.result()[0..4] == &target[0..4] {
+            for i1 in 0..alphabet.len() {
+                for i2 in 0..alphabet.len() {
+                    for i3 in 0..alphabet.len() {
+                        for i4 in 0..alphabet.len() {
+                            for i5 in 0..alphabet.len() {
+                                for i6 in 0..alphabet.len() {
+                                    for i7 in 0..alphabet.len() {
+                                        for i8 in 0..alphabet.len() {
+                                            index += 1;
+                                            if index % batch == 0 {
+                                                let seconds = last.elapsed().as_secs();
+                                                if seconds > 0 {
                                                     println!(
-                                                        "Found: func_{}",
-                                                        String::from_utf8(vec![
-                                                            alphabet[ti],
-                                                            alphabet[i1],
-                                                            alphabet[i2],
-                                                            alphabet[i3],
-                                                            alphabet[i4],
-                                                            alphabet[i5],
-                                                            alphabet[i6],
-                                                            alphabet[i7],
-                                                            alphabet[i8],
-                                                        ])
-                                                        .unwrap(),
+                                                        "Iteration ({:x}): {} ({} KH/s)\r",
+                                                        ti,
+                                                        index,
+                                                        batch / seconds / 1000
                                                     );
-                                                    std::process::exit(0);
                                                 }
+                                                last = Instant::now();
+                                            }
+
+                                            let mut hasher = Keccak256::default();
+                                            hasher.input(&[
+                                                'f' as u8,
+                                                'u' as u8,
+                                                'n' as u8,
+                                                'c' as u8,
+                                                '_' as u8,
+                                                alphabet[ti],
+                                                alphabet[i1],
+                                                alphabet[i2],
+                                                alphabet[i3],
+                                                alphabet[i4],
+                                                alphabet[i5],
+                                                alphabet[i6],
+                                                alphabet[i7],
+                                                alphabet[i8],
+                                            ]);
+                                            for i in 0..params_length/32 {
+                                                hasher.input(params[i]);
+                                            }
+                                            for i in 0..params_length%32 {
+                                                hasher.input(&[params[params_length/32][i]]);
+                                            }
+
+                                            if &hasher.result()[0..4] == &target[0..4] {
+                                                println!(
+                                                    "Found: func_{}",
+                                                    String::from_utf8(vec![
+                                                        alphabet[ti],
+                                                        alphabet[i1],
+                                                        alphabet[i2],
+                                                        alphabet[i3],
+                                                        alphabet[i4],
+                                                        alphabet[i5],
+                                                        alphabet[i6],
+                                                        alphabet[i7],
+                                                        alphabet[i8],
+                                                    ])
+                                                    .unwrap(),
+                                                );
+                                                std::process::exit(0);
                                             }
                                         }
                                     }
@@ -110,11 +124,11 @@ fn main() {
                         }
                     }
                 }
-            })));
-        }
+            }
+        })));
+    }
 
-        for i in 0..handles.len() {
-            handles[i].take().map(std::thread::JoinHandle::join);
-        }
+    for i in 0..handles.len() {
+        handles[i].take().map(std::thread::JoinHandle::join);
     }
 }
