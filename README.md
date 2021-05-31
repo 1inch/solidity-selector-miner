@@ -1,4 +1,4 @@
-# solidty-selector-miner
+# solidity-selector-miner
 
 ### Usage
 
