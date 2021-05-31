@@ -59,29 +59,46 @@ fn main() {
                         for i4 in 0..alphabet.len() {
                             for i5 in 0..alphabet.len() {
                                 for i6 in 0..alphabet.len() {
-                                    for i7 in 0..alphabet.len() {
-                                        for i8 in 0..alphabet.len() {
-                                            index += 1;
-                                            if index % batch == 0 {
-                                                let seconds = last.elapsed().as_secs();
-                                                if seconds > 0 {
-                                                    println!(
-                                                        "Iteration ({:x}): {} ({} KH/s)\r",
-                                                        ti,
-                                                        index,
-                                                        batch / seconds / 1000
-                                                    );
-                                                }
-                                                last = Instant::now();
-                                            }
+                                    index += 1;
+                                    if index % batch == 0 {
+                                        let seconds = last.elapsed().as_secs();
+                                        if seconds > 0 {
+                                            println!(
+                                                "Iteration ({:x}): {} ({} KH/s)\r",
+                                                ti,
+                                                index,
+                                                batch / seconds / 1000
+                                            );
+                                        }
+                                        last = Instant::now();
+                                    }
 
-                                            let mut hasher = Keccak256::default();
-                                            hasher.input(&[
-                                                'f' as u8,
-                                                'u' as u8,
-                                                'n' as u8,
-                                                'c' as u8,
-                                                '_' as u8,
+                                    let mut hasher = Keccak256::default();
+                                    hasher.input(&[
+                                        'f' as u8,
+                                        'u' as u8,
+                                        'n' as u8,
+                                        'c' as u8,
+                                        '_' as u8,
+                                        alphabet[ti],
+                                        alphabet[i1],
+                                        alphabet[i2],
+                                        alphabet[i3],
+                                        alphabet[i4],
+                                        alphabet[i5],
+                                        alphabet[i6],
+                                    ]);
+                                    for i in 0..params_length/32 {
+                                        hasher.input(params[i]);
+                                    }
+                                    for i in 0..params_length%32 {
+                                        hasher.input(&[params[params_length/32][i]]);
+                                    }
+
+                                    if &hasher.result()[0..4] == &target[0..4] {
+                                        println!(
+                                            "Found: func_{}",
+                                            String::from_utf8(vec![
                                                 alphabet[ti],
                                                 alphabet[i1],
                                                 alphabet[i2],
@@ -89,35 +106,10 @@ fn main() {
                                                 alphabet[i4],
                                                 alphabet[i5],
                                                 alphabet[i6],
-                                                alphabet[i7],
-                                                alphabet[i8],
-                                            ]);
-                                            for i in 0..params_length/32 {
-                                                hasher.input(params[i]);
-                                            }
-                                            for i in 0..params_length%32 {
-                                                hasher.input(&[params[params_length/32][i]]);
-                                            }
-
-                                            if &hasher.result()[0..4] == &target[0..4] {
-                                                println!(
-                                                    "Found: func_{}",
-                                                    String::from_utf8(vec![
-                                                        alphabet[ti],
-                                                        alphabet[i1],
-                                                        alphabet[i2],
-                                                        alphabet[i3],
-                                                        alphabet[i4],
-                                                        alphabet[i5],
-                                                        alphabet[i6],
-                                                        alphabet[i7],
-                                                        alphabet[i8],
-                                                    ])
-                                                    .unwrap(),
-                                                );
-                                                std::process::exit(0);
-                                            }
-                                        }
+                                            ])
+                                            .unwrap(),
+                                        );
+                                        std::process::exit(0);
                                     }
                                 }
                             }
