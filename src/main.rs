@@ -1,4 +1,4 @@
-use sha3::{Digest, Keccak256};
+use tiny_keccak::{Keccak, Hasher};
 use std::thread;
 use std::time::Instant;
 use structopt::StructOpt;
@@ -65,17 +65,17 @@ fn main() {
                                     let ms = last.elapsed().as_millis() as u64;
                                     if ms > 3000 {
                                         println!(
-                                            "Thread #{:x}: iteration {}K ({} KH/s)\r",
+                                            "Thread #{:x}: iteration {}M ({} MH/s)\r",
                                             ti,
-                                            index / 1000,
-                                            ((index - reported_index) * 1000 / (1 + ms)) as f64 / 1000.0
+                                            (index / 1000) as f64 / 1000.0,
+                                            ((index - reported_index) / (1 + ms)) as f64 / 1000.0
                                         );
                                         last = Instant::now();
                                         reported_index = index
                                     }
 
-                                    let mut hasher = Keccak256::default();
-                                    hasher.input(&[
+                                    let mut hasher = Keccak::v256();
+                                    hasher.update(&[
                                         'f' as u8,
                                         'u' as u8,
                                         'n' as u8,
@@ -90,15 +90,17 @@ fn main() {
                                         alphabet[i6],
                                     ]);
                                     for i in 0..params_length/32 {
-                                        hasher.input(params[i]);
+                                        hasher.update(&params[i]);
                                     }
                                     for i in 0..params_length%32 {
-                                        hasher.input(&[params[params_length/32][i]]);
+                                        hasher.update(&[params[params_length/32][i]]);
                                     }
 
-                                    if &hasher.result()[0..4] == &target[0..4] {
+                                    let mut res = [0u8; 4];
+                                    hasher.finalize(&mut res);
+                                    if &res[0..4] == &target[0..4] {
                                         println!(
-                                            "Found signature func_{} in {} seconds after {}K iterations",
+                                            "Found signature func_{} in {} seconds after {}M iterations",
                                             String::from_utf8(vec![
                                                 alphabet[ti],
                                                 alphabet[i1],
@@ -110,7 +112,7 @@ fn main() {
                                             ])
                                             .unwrap(),
                                             first.elapsed().as_secs(),
-                                            index * args_threads as u64 / 1000
+                                            index * args_threads as u64 / 1000000
                                         );
                                         std::process::exit(0);
                                     }
