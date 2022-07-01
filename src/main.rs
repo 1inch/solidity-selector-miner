@@ -27,7 +27,6 @@ fn main() {
         'U' as u8, 'V' as u8, 'W' as u8, 'X' as u8, 'Y' as u8, 'Z' as u8,
     ];
 
-    let batch = 10_000_000;
     let mut target = [0u8; 4];
     target.copy_from_slice(
         &hex::decode(args.selector)
@@ -47,12 +46,15 @@ fn main() {
         );
     }
 
+    let args_threads = args.threads;
     let mut handles = vec![];
     for ti in 0..args.threads {
         handles.push(Some(thread::spawn(move || {
             let mut index = 0;
+            let mut reported_index = 0;
             let mut last = Instant::now();
-
+            let first = last;
+            
             for i1 in 0..alphabet.len() {
                 for i2 in 0..alphabet.len() {
                     for i3 in 0..alphabet.len() {
@@ -60,17 +62,16 @@ fn main() {
                             for i5 in 0..alphabet.len() {
                                 for i6 in 0..alphabet.len() {
                                     index += 1;
-                                    if index % batch == 0 {
-                                        let seconds = last.elapsed().as_secs();
-                                        if seconds > 0 {
-                                            println!(
-                                                "Iteration ({:x}): {} ({} KH/s)\r",
-                                                ti,
-                                                index,
-                                                batch / seconds / 1000
-                                            );
-                                        }
+                                    let ms = last.elapsed().as_millis() as u64;
+                                    if ms > 3000 {
+                                        println!(
+                                            "Thread #{:x}: iteration {}K ({} KH/s)\r",
+                                            ti,
+                                            index / 1000,
+                                            ((index - reported_index) * 1000 / (1 + ms)) as f64 / 1000.0
+                                        );
                                         last = Instant::now();
+                                        reported_index = index
                                     }
 
                                     let mut hasher = Keccak256::default();
@@ -97,7 +98,7 @@ fn main() {
 
                                     if &hasher.result()[0..4] == &target[0..4] {
                                         println!(
-                                            "Found: func_{}",
+                                            "Found signature func_{} in {} seconds after {}K iterations",
                                             String::from_utf8(vec![
                                                 alphabet[ti],
                                                 alphabet[i1],
@@ -108,6 +109,8 @@ fn main() {
                                                 alphabet[i6],
                                             ])
                                             .unwrap(),
+                                            first.elapsed().as_secs(),
+                                            index * args_threads as u64 / 1000
                                         );
                                         std::process::exit(0);
                                     }
