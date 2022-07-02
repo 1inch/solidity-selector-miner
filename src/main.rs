@@ -112,7 +112,7 @@ fn main() {
                                             ])
                                             .unwrap(),
                                             first.elapsed().as_secs(),
-                                            index * args_threads as u64 / 1000000
+                                            (index * args_threads as u64 / 1000) as f64 / 1000.0
                                         );
                                         std::process::exit(0);
                                     }
